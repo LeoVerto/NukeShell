@@ -2,6 +2,7 @@
 	A graphical user interface file browser (guifb) 
 	Version 1.4.0
 	by inventor2514
+  edited by Leo_Verto
 ]]--
 
 if not term.isColor then
@@ -14,20 +15,24 @@ else
 	end
 end
 
+-- Initialize API, used by the shell and other programs
+os.loadAPI("nukeAPI")
+nukeAPI = _G["nukeAPI"]
+
 -- Configuration variables
-local sStartDir = ""
-local sEditPath = "/.programs/cedit"
-local sProgramDir = "Programs"
-local sApiDir = ".apis"
+local sStartDir = nukeAPI.getGlobalVar("sStartDir")
+local sEditPath = nukeAPI.getGlobalVar("sEditPath")
+local sProgramDir = nukeAPI.getGlobalVar("sProgramDir")
+local sApiDir = nukeAPI.getGlobalVar("sApiDir")
 
 -- Initialize some variables for later
-os.loadAPI("nukeAPI")
 local tDirIcon = {"", " /\\____", "|      |", "|      |", "|______|"}
-local tFileIcon = {" ______", "|      |", "| ~~~~ |", "| ~~~~ |", "|______|"}
+local tFileIcon = {" ______", "|      |", "|      |", "|      |", "|______|"}
+local tTextIcon = {" ______", "|      |", "| ~~~~ |", "| ~~~~ |", "|______|"}
 local tImageIcon = {" ______", "|()__  |", "| /__\\ |", "| |__| |", "|______|"}
 local tAnimationIcon = {" ______", "|      |", "|      |", "|      |", "|______|"}
-local tFileExtentions = {["image"] = {".img", ".nfp"}, ["animation"] = {".gif", ".nfa"}}
-local tFileBlacklist = {"nukeShell", "nukeAPI", "startup", "rom"}
+local tFileExtentions = {["text"] = {".txt", ".lua"}, ["image"] = {".img", ".nfp"}, ["animation"] = {".gif", ".nfa"}}
+local tFileBlacklist = {"nukeShell", "nukeAPI", "fileSys", "startup", "rom"}
 local xMax, yMax = term.getSize()
 local row = 4, 3, 1
 local sDir = sStartDir
@@ -58,13 +63,16 @@ local function fileData(sDir)
 	local tList = fs.list(sDir)
 	local tData = {}
 	for i,sName in ipairs(tList) do
-		if string.sub(sName, 1, 1) ~= "." and not nukeAPI.contains(tFileBlacklist, sName) then
-			local sPath = fs.combine(sDir, sName)
+    local sPath = fs.combine(sDir, sName)
+		if string.sub(sName, 1, 1) ~= "." and not nukeAPI.contains(tFileBlacklist, sPath) then
       local sFiletype = nil
       local sNewName = sName
       local sExtension = sName:sub(-4)
       if fs.isDir(sPath) then
         sFiletype = "dir"
+      elseif nukeAPI.contains(tFileExtentions["text"], sExtension) then
+        sFiletype = "text"
+        sNewName = sName:sub(1, sName:len()-4)
       elseif nukeAPI.contains(tFileExtentions["image"], sExtension) then
         sFiletype = "image"
         sNewName = sName:sub(1, sName:len()-4)
@@ -72,7 +80,7 @@ local function fileData(sDir)
         sFiletype = "animation"
         sNewName = sName:sub(1, sName:len()-4)
       elseif sDir == sProgramDir then
-        sFiletype = "link"
+        sFiletype = "program"
       end
 			table.insert(tData, {sNewName, sFiletype})
 		end
@@ -110,6 +118,8 @@ local function drawIcons()
     local x, y, sName = tOrigins[icon][1], tOrigins[icon][2], string.sub(tData[i][1], 1, 8)
     if tData[i][2] == "dir" then
       drawIcon(x, y, tDirIcon, sName)
+    elseif tData[i][2] == "text" then
+      drawIcon(x, y, tTextIcon, sName)
     elseif tData[i][2] == "image" then
       drawIcon(x, y, tImageIcon, sName)
     elseif tData[i][2] == "animation" then
@@ -153,7 +163,7 @@ local function iconData(x, y)
 			tIconData = tData[pos+i]
 			if tIconData then
 				if fs.exists(fs.combine(sDir, tIconData[1])) then 
-					return tIconData 
+					return tIconData
 				else
 					recalculate()
 					redraw()
@@ -222,20 +232,24 @@ while bRun do
 					row = row + 1
 					redraw()
 				end
-			-- file/dir icon
+			-- user clicked icon
 			elseif iconData(x, y) then
 				local tIconData = iconData(x, y)
 				if tIconData[2] == "dir" then
 					sDir = fs.combine(sDir, tIconData[1])
 					recalculate()
 					redraw()
+        elseif tIconData[2] == "text" then
+          local sPath = "/" .. fs.combine(sDir, tIconData[1])
+					shell.run(sEditPath, sPath)
+					redraw()
 				elseif tIconData[2] ~= nil then
           local sPath = "/" .. fs.combine(sDir, tIconData[1])
           term.clear()
           term.setCursorPos(1,1)
           shell.run(sPath)
-					redraw()
           sleep(2)
+					redraw()
         else
           local sPath = "/" .. fs.combine(sDir, tIconData[1])
 					shell.run(sEditPath, sPath)
