@@ -1,0 +1,477 @@
+--[[ 
+	A graphical user interface file browser (guifb) 
+	Version 1.4.0
+	by inventor2514
+]]--
+
+if not term.isColor then
+	print("An advanced computer is required")
+	return
+else
+	if not term.isColor() then
+		print("An advanced computer is required")
+		return
+	end
+end
+
+-- Configuration variables
+local sStartDir = ""
+local sEditPath = "/.programs/cedit"
+local sProgramDir = "Programs"
+local sApiDir = ".apis"
+
+-- Initialize some variables for later
+os.loadAPI("nukeAPI")
+local tDirIcon = {"", " /\\____", "|      |", "|      |", "|______|"}
+local tFileIcon = {" ______", "|      |", "| ~~~~ |", "| ~~~~ |", "|______|"}
+local tImageIcon = {" ______", "|()__  |", "| /__\\ |", "| |__| |", "|______|"}
+local tAnimationIcon = {" ______", "|      |", "|      |", "|      |", "|______|"}
+local tFileExtentions = {["image"] = {".img", ".nfp"}, ["animation"] = {".gif", ".nfa"}}
+local tFileBlacklist = {"nukeShell", "nukeAPI", "startup", "rom"}
+local xMax, yMax = term.getSize()
+local row = 4, 3, 1
+local sDir = sStartDir
+local maxCol, maxRow = 1, 1
+local tOrigins = {}
+local tData = {}
+local tDebug ={"Initialized"}
+sClipboard = ""
+local sVersion = "1.0"
+
+-- Returns the maximum columns and rows of icons
+local function iconLimits()
+	local i, maxCol = 3, 0
+	while i <= xMax-9 do
+		i = i + 9
+		maxCol = maxCol + 1
+	end
+	local i, maxRow = 2, 0
+	while i <= yMax-6 do
+		i = i + 6
+		maxRow = maxRow + 1
+	end
+	return maxCol, maxRow
+end
+
+-- Returns a table containing file data in {sName, bDir} format
+local function fileData(sDir)
+	local tList = fs.list(sDir)
+	local tData = {}
+	for i,sName in ipairs(tList) do
+		if string.sub(sName, 1, 1) ~= "." and not nukeAPI.contains(tFileBlacklist, sName) then
+			local sPath = fs.combine(sDir, sName)
+      local sFiletype = nil
+      local sNewName = sName
+      local sExtension = sName:sub(-4)
+      if fs.isDir(sPath) then
+        sFiletype = "dir"
+      elseif nukeAPI.contains(tFileExtentions["image"], sExtension) then
+        sFiletype = "image"
+        sNewName = sName:sub(1, sName:len()-4)
+      elseif nukeAPI.contains(tFileExtentions["animation"], sExtension) then
+        sFiletype = "animation"
+        sNewName = sName:sub(1, sName:len()-4)
+      elseif sDir == sProgramDir then
+        sFiletype = "link"
+      end
+			table.insert(tData, {sNewName, sFiletype})
+		end
+	end
+	return tData
+end
+
+-- Draws a window-like border and buttons
+local function drawMainBorder()
+	nukeAPI.drawBorder(1, 1, xMax, yMax, colors.lime)
+	nukeAPI.output(xMax-4, 1, "X", colors.red)
+	nukeAPI.output(xMax-6, 1, "<", colors.blue)
+	nukeAPI.output(xMax, 3, "*", colors.lightBlue)
+	nukeAPI.output(xMax, yMax-2, "*", colors.lightBlue)
+	nukeAPI.output(3, 1, "[NukeShell "..sVersion.."]", colors.lime)
+end
+
+-- Draws an icon at the specified position
+local function drawIcon(x, y, tIcon, sName)
+  term.setTextColor(colors.white)
+	local tIcon = tIcon
+	for i, s in ipairs(tIcon) do
+		nukeAPI.output(x, y+i-1, s)
+	end
+	if sName then nukeAPI.output(x, y+#tIcon, sName) end
+end
+
+-- Draws icons to represent file data
+local function drawIcons()
+	local pos = 1 + maxCol*(row-1)
+	local limit = pos-1+maxCol*maxRow
+	if #tData < limit then limit = #tData end
+	local icon = 1
+	for i = pos, limit do
+    local x, y, sName = tOrigins[icon][1], tOrigins[icon][2], string.sub(tData[i][1], 1, 8)
+    if tData[i][2] == "dir" then
+      drawIcon(x, y, tDirIcon, sName)
+    elseif tData[i][2] == "image" then
+      drawIcon(x, y, tImageIcon, sName)
+    elseif tData[i][2] == "animation" then
+      drawIcon(x, y, tAnimationIcon, sName)
+    else
+      drawIcon(x, y, tFileIcon, sName)
+    end
+    icon = icon + 1
+	end
+end
+
+-- Opens a commandline
+local function runCmd()
+  nukeAPI.drawBorder(xMax/4, yMax/4, 10, 10, colors.lime)
+	-- nukeAPI.output(xMax/2-2, 1, "X", colors.red)
+  print("CMD")
+end
+
+-- Redraws the border and icons
+local function redraw()
+	term.clear()
+  term.setCursorBlink(false)
+	drawIcons()
+	drawMainBorder()
+end
+
+-- Recalculate the file data and icon variables
+local function recalculate()
+	row = 1
+	tData = fileData(sDir)
+	maxCol, maxRow = iconLimits()
+	tOrigins = nukeAPI.originTable(maxCol, maxRow)
+end
+
+-- Returns the data associated with an icon or nil
+local function iconData(x, y)
+	local pos = maxCol*(row-1)
+	for i=1, maxCol*maxRow do
+		local xMin, yMin = tOrigins[i][1], tOrigins[i][2]
+		if x >= xMin and y >= yMin and x <= xMin+8 and y <= yMin+5 then
+			tIconData = tData[pos+i]
+			if tIconData then
+				if fs.exists(fs.combine(sDir, tIconData[1])) then 
+					return tIconData 
+				else
+					recalculate()
+					redraw()
+				end
+			end
+		end
+	end
+	return nil
+end
+
+-- Load all files from api dir as APIs
+local function loadApis(bReturn)
+  local tApis = fs.list(sApiDir)
+  for i=1, #tApis do
+    os.loadAPI(sApiDir.."/"..tApis[i])
+  end
+  if bReturn then return tApis end
+end
+
+-- Startup crappy, will be remade lateron
+term.clear()
+term.setCursorPos(1,1)
+print("Launching NukeShell" ..sVersion.."...")
+sleep(.2)
+print("Loading APIs...")
+sleep(.2)
+local tApis = loadApis(true)
+for i=1, #tApis do
+  print("Loaded API "..tApis[i])
+end
+sleep(.2)
+print("Ready to go!")
+sleep(.6)
+
+-- Main program loop
+local bRun = true
+recalculate()
+redraw()
+local bCursorToggle = false
+loadApis()
+while bRun do
+	local sEvent, ret1, ret2, ret3 = os.pullEventRaw()
+	if sEvent == "mouse_click" then
+		local x, y = ret2, ret3
+		-- left-click
+		if ret1 == 1 then
+			-- close button
+			if x == xMax-4 and y == 1 then
+				bRun = false
+			-- back button
+			elseif x == xMax-6 and y == 1 then
+				if sDir ~= "" then
+					sDir = fs.combine(sDir, "..")
+					recalculate()
+					redraw()
+				end
+			-- scroll up button
+			elseif x == xMax and y == 3 then	
+				if row > 1 then
+					row = row - 1
+					redraw()
+				end
+			-- scroll down button
+			elseif x == xMax and y == yMax-2 then
+				if row < (math.ceil(#tData/maxCol)-(maxRow-1)) then
+					row = row + 1
+					redraw()
+				end
+			-- file/dir icon
+			elseif iconData(x, y) then
+				local tIconData = iconData(x, y)
+				if tIconData[2] == "dir" then
+					sDir = fs.combine(sDir, tIconData[1])
+					recalculate()
+					redraw()
+				elseif tIconData[2] ~= nil then
+          local sPath = "/" .. fs.combine(sDir, tIconData[1])
+          term.clear()
+          term.setCursorPos(1,1)
+          shell.run(sPath)
+					redraw()
+          sleep(2)
+        else
+          local sPath = "/" .. fs.combine(sDir, tIconData[1])
+					shell.run(sEditPath, sPath)
+					redraw()
+				end
+			end
+		-- right-click
+		elseif ret1 == 2 then
+			if x == 1 or y == 1 or x == xMax or y == yMax then
+				-- do nothing
+			elseif iconData(x, y) then
+				local tIconData = iconData(x, y)
+				if tIconData[2] == "dir" then
+					local sDiskSide = nil
+					for i,sSide in ipairs( rs.getSides() ) do
+						if disk.isPresent(sSide) then
+							if tIconData[1] == disk.getMountPath(sSide) then
+								sDiskSide = sSide
+							end
+						end
+					end
+					if sDiskSide then
+						local selection = nukeAPI.runSelectionMenu("Enter Disk", "Label Disk", "Copy Disk", "Eject Disk")
+						if selection and fs.exists(fs.combine(sDir, tIconData[1])) then
+							-- enter disk
+							if selection == 1 then
+								sDir = fs.combine(sDir, tIconData[1])
+								recalculate()
+								redraw()
+							-- label disk
+							elseif selection == 2 then
+								local sLabel = nukeAPI.runTextMenu("Disk Label", disk.getLabel(sDiskSide))
+								if sLabel ~= "" and disk.isPresent(sDiskSide) then
+									disk.setLabel(sDiskSide, sLabel)
+								end
+							-- copy disk
+							elseif selection == 3 then
+								if fs.exists(".copy") then fs.delete(".copy") end
+								fs.copy(fs.combine(sDir, tIconData[1]), ".copy")
+								sClipboard = tIconData[1]
+							-- eject disk
+							elseif selection == 4 then
+								disk.eject(sDiskSide)
+								sleep(.3)
+								fs.delete(sDiskSide)
+								recalculate()
+								redraw()
+							end
+						end
+					else
+						local selection = nukeAPI.runSelectionMenu("Open Dir", "Rename Dir", "Copy Dir", "Delete Dir")
+						if selection then
+							-- enter dir
+							if selection == 1 then
+								sDir = fs.combine(sDir, tIconData[1])
+								recalculate()
+								redraw()
+							-- rename dir
+							elseif selection == 2 then
+								if not fs.isReadOnly(fs.combine(sDir, tIconData[1])) and fs.combine(sDir, tIconData[1]) ~= sProgramDir then
+									local sName = nukeAPI.runTextMenu("Dir Name", tIconData[1])
+									if sName ~= "" and sName ~= tIconData[1] and not fs.isReadOnly(fs.combine(sDir, sName)) then
+										local bConfirm = true
+										if fs.exists(fs.combine(sDir,sName)) then
+											bConfirm = nukeAPI.runConfirmMenu("Overwrite existing", "file with that name?")
+										end
+										if bConfirm then
+											fs.move(fs.combine(sDir, tIconData[1]), fs.combine(sDir, sName))
+											recalculate()
+										end
+									end
+								end
+							-- copy dir
+							elseif selection == 3 then
+								if fs.exists(".copy") then fs.delete(".copy") end
+								fs.copy(fs.combine(sDir, tIconData[1]), ".copy")
+								sClipboard = tIconData[1]
+							-- delete dir
+							elseif selection == 4 then
+								if not fs.isReadOnly(fs.combine(sDir, tIconData[1])) then
+									fs.delete(fs.combine(sDir, tIconData[1]))
+									recalculate()
+								end
+							end
+						end
+					end
+				else
+					local selection = nukeAPI.runSelectionMenu("Edit File", "Run File", "Rename File", "Copy File", "Delete File")
+					if selection then
+						-- edit file
+						if selection == 1 then
+							local sPath = "/" .. fs.combine(sDir, tIconData[1])
+							shell.run(sEditPath, sPath)
+						-- run file
+						elseif selection == 2 then
+							local sPath = "/" .. fs.combine(sDir, tIconData[1])
+							local sArgs = nukeAPI.runTextMenu("Arguments")
+							term.clear()
+							term.setCursorPos(1, 1)
+							if sArgs ~= "" then
+								local tArgs = {}
+								for sMatch in string.gmatch(sArgs, "[^ ]+") do
+									table.insert(tArgs, sMatch)
+								end
+								shell.run(sPath, unpack(tArgs))
+							else
+								shell.run(sPath)
+							end
+							sleep(2)
+							print("= Press any key to return =")
+							os.pullEventRaw("key")
+						-- rename file
+						elseif selection == 3 then
+							if not fs.isReadOnly(fs.combine(sDir, tIconData[1])) then
+								local sName = nukeAPI.runTextMenu("File Name", tIconData[1])
+								if sName ~= "" and sName ~= tIconData[1] and not fs.isReadOnly(fs.combine(sDir, sName)) then
+									local bConfirm = true
+									if fs.exists(fs.combine(sDir,sName)) then
+										bConfirm = nukeAPI.runConfirmMenu("Overwrite existing", "file with that name?")
+									end
+									if bConfirm then
+										fs.move(fs.combine(sDir, tIconData[1]), fs.combine(sDir, sName))
+										recalculate()
+									end
+								end
+							end
+						-- copy file
+						elseif selection == 4 then
+							if fs.exists(".copy") then fs.delete(".copy") end
+							fs.copy(fs.combine(sDir, tIconData[1]), ".copy")
+							sClipboard = tIconData[1]
+						-- delete file
+						elseif selection == 5 then
+							if not fs.isReadOnly(fs.combine(sDir, tIconData[1])) then
+								fs.delete(fs.combine(sDir, tIconData[1]))
+								recalculate()
+							end
+						end
+					end
+				end
+			else
+				local selection = nukeAPI.runSelectionMenu("New Dir", "New File", "Open Commandline", "Paste")
+				if selection then
+					-- new dir
+					if selection == 1 then
+						local sName = nukeAPI.runTextMenu("Dir Name")
+						if sName ~= "" and not fs.isReadOnly(fs.combine(sDir, sName)) then
+							local bConfirm = true
+							if fs.exists(fs.combine(sDir,sName)) then
+								bConfirm = nukeAPI.runConfirmMenu("Overwrite existing", "file with that name?")
+							end
+							if bConfirm then
+								fs.makeDir(fs.combine(sDir,sName))
+								recalculate()
+							end
+						end
+					-- new file
+					elseif selection == 2 then
+						local sName = nukeAPI.runTextMenu("File Name")
+						if sName ~= "" and not fs.isReadOnly(fs.combine(sDir, sName)) then
+							local bConfirm = true
+							if fs.exists(fs.combine(sDir,sName)) then
+								bConfirm = nukeAPI.runConfirmMenu("Overwrite existing", "file with that name?")
+							end
+							if bConfirm then
+								local file = io.open(fs.combine(sDir, sName), "w")
+								file:write("\n")
+								file:close()
+								recalculate()
+							end
+						end
+					-- open commandline
+					elseif selection == 3 then
+						runCmd()
+					-- paste
+					elseif selection == 4 then
+						local sName = nukeAPI.runTextMenu("Paste Name", sClipboard)
+						if sName ~= "" and not fs.isReadOnly(fs.combine(sDir, sName)) then
+							local bConfirm = true
+							if fs.exists(fs.combine(sDir,sName)) then
+								bConfirm = nukeAPI.runConfirmMenu("Overwrite existing", "file with that name?")
+							end
+							if bConfirm then
+								fs.delete(fs.combine(sDir, sName))
+								fs.copy(".copy", fs.combine(sDir, sName))
+								recalculate()
+							end
+						end
+					end
+				end
+			end
+			redraw()
+		end
+	elseif sEvent == "mouse_scroll" then
+		-- scroll down
+		if ret1 == 1 then
+			if row < (math.ceil(#tData/maxCol)-(maxRow-1)) then
+				row = row + 1
+				redraw()
+			end
+		-- scroll up
+		else
+			if row > 1 then
+				row = row - 1
+				redraw()
+			end
+		end
+	elseif sEvent == "key" then
+		local key = ret1
+		-- page up "scroll up"
+		if key == 201 then
+			if row > 1 then
+				row = row - 1
+				redraw()
+			end
+		-- page down "scroll down"
+		elseif key == 209 then
+			if row < (math.ceil(#tData/maxCol)-(maxRow-1)) then
+				row = row + 1
+				redraw()
+			end
+		-- backspace "back"
+		elseif key == 14 then
+			if sDir ~= "" then
+				sDir = fs.combine(sDir, "..")
+				recalculate()
+				redraw()
+			end
+		-- end "close"
+		elseif key == 207 then
+			bRun = false
+		end
+	end
+end
+
+-- Cleanup
+if fs.exists(".copy") then fs.delete(".copy") end
+term.clear()
+term.setCursorPos(1, 1)

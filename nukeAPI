@@ -1,0 +1,161 @@
+-- Initialize some variables for later
+local xMax, yMax = term.getSize()
+local row = 4, 3, 1
+
+-- Returns a table of possible icon origin positions
+function originTable(maxCol, maxRow)
+	local tOrigins = {}
+	for i=1, maxRow do
+		for j=1, maxCol do
+			table.insert(tOrigins, {3+9*(j-1), 2+6*(i-1)})
+		end
+	end
+	return tOrigins
+end
+
+-- Array search function
+function contains(t, key)
+  for k,v in pairs(t) do
+    if v == key then
+      return true
+    end
+  end
+  return false
+end
+
+-- Writes text to the specified position
+function output(x, y, sText, color)
+  if color ~= nil then
+    term.setTextColor(color)
+  else
+    term.setTextColor(colors.white)
+  end
+	term.setCursorPos(x, y)
+	term.write(sText)
+end
+
+-- Draws a rectangular border
+function drawBorder(x, y, xLen, yLen, color)
+	output(x, y, "/", color)
+	output(x+xLen-1, y, "\\", color)
+	output(x, y+yLen-1, "\\", color)
+	output(x+xLen-1, y+yLen-1, "/", color)
+	for i=x+1, x+xLen-2 do
+		output(i, y, "-", color)
+		output(i, y+yLen-1, "-", color)
+	end
+	for i=y+1, y+yLen-2 do
+		output(x, i, "|", color)
+		output(x+xLen-1, i, "|", color)
+	end
+end
+
+-- Draws a centered menu and returns origin, length, and height
+function drawMenu(tMenu, closeButton)
+	local length, height = 0, #tMenu+2
+	for _, sLine in ipairs(tMenu) do
+		if string.len(sLine) >= length then 
+			length = string.len(sLine)+2
+		end
+	end
+	local sBlank = ""
+	for i=1, length-2 do sBlank = sBlank.." " end
+	local x, y = math.floor(xMax/2) - math.ceil(length/2), math.floor(yMax/2) - math.ceil(#tMenu/2)
+	drawBorder(x, y, length, height, colors.lime)
+  if closeButton then
+    output(x+length-3, y, "X", colors.red)
+  end
+	for i, sLine in ipairs(tMenu) do
+		output(x+1, y+i, sBlank)
+		output(x+1, y+i, sLine)
+	end
+	return {x, y}, length, height
+end
+
+-- Runs a selection menu and returns a number or nil
+function runSelectionMenu(...)
+	local tArgs = {...}
+	local tMenu = {}
+	for _, sOption in ipairs(tArgs) do
+		table.insert(tMenu, " ( ) "..sOption.." ")
+	end
+	table.insert(tMenu, " [Okay] [Cancel] ")
+	local origin, length, height = drawMenu(tMenu, true)
+	local selection = 1
+	local x, y = origin[1]+3, origin[2]+1
+	local bMenu = true
+	while bMenu do
+		output(origin[1]+3, origin[2]+selection, "#")
+		local sEvent, ret1, ret2, ret3 = os.pullEventRaw()
+		if sEvent == "mouse_click" and ret1 == 1 then
+			local x, y = ret2, ret3
+      if y == origin[2] and x == origin[1]+length-3 then
+        bMenu = false
+        selection = nil
+			elseif x > origin[1] and x < origin[1]+length-1 and y > origin[2] and y < origin[2]+height-1 then
+				if y < origin[2]+height-2 then
+					selection = y - origin[2]
+				elseif x > origin[1]+1 and x < origin[1]+8 then
+					bMenu = false
+				elseif x > origin[1]+8 and x < origin[1]+17 then
+					bMenu = false
+					selection = nil
+				end
+				drawMenu(tMenu, true)
+			end
+		end
+	end
+	return selection
+end
+
+-- Runs a text menu and returns a string
+function runTextMenu(sPrompt, sStartText)
+	local tMenu = {" "..sPrompt..":", " {              } ", " [Done] "}
+	local origin, length, height = drawMenu(tMenu)
+	local sText = ""
+	if sStartText then sText = sStartText end
+	local bMenu = true
+	while bMenu do
+		output(origin[1]+3, origin[2]+2, string.sub(sText, 1, 14))
+		output(origin[1]+3, origin[2]+2, "              ")
+		output(origin[1]+3, origin[2]+2, string.sub(sText, -14))
+		local sEvent, ret1, ret2, ret3 = os.pullEventRaw()
+		if sEvent == "mouse_click" and ret1 == 1 then
+			local x, y = ret2, ret3
+			if y == origin[2]+height-2 and x > origin[1]+1 and x < origin[1]+8 then
+				bMenu = false
+			end
+		elseif sEvent == "char" then
+			sText = sText .. ret1
+		elseif sEvent == "key" then
+			if ret1 == 14 then
+				sText = string.sub(sText, 1, string.len(sText)-1)
+			end
+		end
+	end
+	return sText
+end
+
+-- Runs a confirmation menu and returns a boolean
+function runConfirmMenu(...)
+	local tArgs = {...}
+	local tMenu = {}
+	for _, sLine in ipairs(tArgs) do
+		tMenu[#tMenu+1] = " "..sLine.." "
+	end
+	table.insert(tMenu, " [Yes] [No] ")
+	local origin, length, height = drawMenu(tMenu)
+	local bMenu, bConfirm = true
+	while bMenu do
+		local sEvent, ret1, ret2, ret3 = os.pullEventRaw()
+		if sEvent == "mouse_click" and ret1 == 1 then
+			local x, y = ret2, ret3
+			if y == origin[2]+height-2 and x > origin[1]+1 and x < origin[1]+7 then
+				bMenu, bConfirm = false, true
+			elseif y == origin[2]+height-2 and x > origin[1]+7 and x < origin[1]+12 then
+				bMenu, bConfirm = false, false
+			end
+		end
+	end
+	return bConfirm
+end

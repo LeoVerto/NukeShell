@@ -1,0 +1,14 @@
+if nukeAPI.runConfirmMenu("Do you want to", "play on a monitor?") then
+  for _,side in ipairs(rs.getSides()) do
+    if peripheral.getType(side) == "monitor" then
+      if nukeAPI.runConfirmMenu("Use "..side, "monitor?") then
+        shell.run("monitor", side, ".programs/shipper")
+        break
+      end
+    end
+  end
+else
+  print("Ok")
+  shell.run(".programs/Shipper")
+  sleep(2)
+end

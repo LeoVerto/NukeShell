@@ -1,0 +1,327 @@
+local pixels = {}
+
+function getPixelIndex(pixel)
+	local index = -1
+	for i=1,#pixels do
+		if pixels[i] == pixel then index = i end
+	end
+	return index
+end
+
+function clear()
+	local oldx, oldy = term.getCursorPos()
+	local width, height = term.getSize()
+	term.setBackgroundColor(colors.black)
+	for x=1,width do
+		for y=1,height do
+			term.setCursorPos(x,y)
+			term.write(" ")
+			term.setTextColor(colors.white)
+		end
+	end
+	term.setCursorPos(oldx, oldy)
+	pixels = {}
+end
+
+function getPixelByLoc(x, y)
+	local index = -1
+	for i=1,#pixels do
+		local pixel = pixels[i]
+		if pixel[1] == x and pixel[2] == y then
+			index = i
+		end
+	end
+	return index
+end
+
+function setPixel(x, y, bcolor, tcolor, ch, id, index)
+	local pixel ={}
+	if id ~= nil and id > 0 then
+		pixel ={id, x, y, bcolor, tcolor, ch}
+	else
+		pixel ={#pixels + 1, x, y, bcolor, tcolor, ch}
+	end
+	if index == nil then
+		index = getPixelIndex(pixel)
+		if index == -1 then
+			pixels[#pixels + 1] = pixel
+		else
+			pixels[index] = pixel
+		end
+	else
+		pixels[index] = pixel
+	end
+	return pixel
+end
+
+function setPixelByData(x, y, data)
+	return setPixel(x, y, data[1], data[2], data[3], data[4])
+end
+
+function getPixel(pixel)
+	local id = pixel.getID()
+	local result = nil
+	for i=1,#pixels do
+		local pid = pixels[i][1]
+		if pid > 0 and pid == id then
+			result = pixels[i]
+		end
+	end
+	return result
+end
+
+function getPixelIndex(pixel)
+	local index = -1
+	for i=1,#pixels do
+		if pixels[i] == pixel then index = i end
+	end
+	return index
+end
+
+function createPixelByLoc(px, py)
+	local pixel = getPixelByLox(px, py)
+	local pix = createPixel(px, py, pixel[4], pixel[5], pixel[6])
+	return pix
+end
+
+
+function drawLine(x1, y1, x2, y2, data)
+	local pixs = {}
+	if nColour then
+			term.setBackgroundColor( nColour )
+		end
+		
+		x1 = math.floor(x1)
+		y1 = math.floor(y1)
+		x2 = math.floor(x2)
+		y2 = math.floor(y2)
+		
+		if x1 == x2 and y1 == y2 then
+			pixs[#pixs + 1] = setPixelByData( x1, y1, data )
+			return pixs
+		end
+		
+		local minX = math.min( x1, x2 )
+		if minX == x1 then
+			minY = y1
+			maxX = x2
+			maxY = y2
+		else
+			minY = y2
+			maxX = x1
+			maxY = y1
+		end
+			
+		local xDiff = maxX - minX
+		local yDiff = maxY - minY
+				
+		if xDiff > math.abs(yDiff) then
+			local y = minY
+			local dy = yDiff / xDiff
+			for x=minX,maxX do
+				pixs[#pixs + 1] = setPixelByData( x, math.floor( y + 0.5 ), data )
+				y = y + dy
+			end
+		else
+			local x = minX
+			local dx = xDiff / yDiff
+			if maxY >= minY then
+				for y=minY,maxY do
+					pixs[#pixs + 1] = setPixelByData( math.floor( x + 0.5 ), y, data )
+					x = x + dx
+				end
+			else
+				for y=minY,maxY,-1 do
+					pixs[#pixs + 1] = setPixelByData( math.floor( x + 0.5 ), y, data )
+					x = x - dx
+				end
+			end
+		end
+		return pixs
+end
+
+function drawLineP(pos1, pos2, data)
+	local pixs = {}
+    local pix1 = drawLine(pos1[1], pos1[2], pos2[1], pos2[2], data)
+	pixs = pix1
+	return pixs
+end
+
+function drawSquare(corner1, corner2, corner3, corner4, data)
+        local pixs = {}
+		local pix1 = drawLineP(corner1, corner2, data)
+        local pix2 = drawLineP(corner2, corner3, data)
+        local pix3 = drawLineP(corner3, corner4, data)
+        local pix4 = drawLineP(corner4, corner1, data)
+		for i=1,#pix1 do pixs[#pixs + 1] = pix1[i] end
+		for i=1,#pix2 do pixs[#pixs + 1] = pix2[i] end
+		for i=1,#pix3 do pixs[#pixs + 1] = pix3[i] end
+		for i=1,#pix4 do pixs[#pixs + 1] = pix4[i] end
+		return pixs
+end
+
+function drawCircle(center, radius, data, fill)
+        -- (x-a)^2 + (y-B)^2 = r^2 (formula, where r is radius, x and y are coordinates and a and b is center)
+		local pixs = {}
+        local rads = radius^2
+        local topright = {center[1]-radius, center[2]-radius}
+        local bottomleft = {center[1]+radius, center[2]+radius}
+        for cx=topright[1],bottomleft[1],1 do
+                for cy=topright[2],bottomleft[2],1 do
+                        local xb = (cx-center[1])^2
+                        local yb = (cy-center[2])^2
+                        if (xb+yb) == rads then
+                                pixs[#pixs + 1] = setPixelByData(cx, cy, data)
+                        elseif fill and (xb+yb) <= rads then
+                                pixs[#pixs + 1] = setPixelByData(cx,  cy, data)
+                        end
+                end
+        end
+		return pixs
+end
+
+function drawPolygon(points, data)
+	local pixs = {}
+        for i,v in ipairs(points) do
+                local precorner = nil
+                if i == 1 then
+                        precorner = points[#points]
+                else
+                        precorner = points[i-1]
+                end
+                local pix = drawLineP(v, precorner, data)
+				for i=1,#pix do pixs[#pixs + 1] = pix[i] end
+        end
+	return pixs
+end
+
+
+
+function createPixelArray(pixs)
+	local cpixs = {}
+	if #pixs > 0 then
+		for i=1,#pixs do
+			local pixel = pixs[i]
+			cpixs[#cpixs + 1] = createPixel(pixel[2], pixel[3], pixel[4], pixel[5], pixel[6])
+		end
+	end
+	local parray = {
+		pixs = cpixs,
+		getPixels = function(self)
+			return self.pixs
+		end,
+		getPixel = function(self, id)
+			for i=1,#self.pixs do
+				local pixel = self.pixs[i]
+				if pixel.id == id then
+					return pixel
+				end
+			end
+			return nil
+		end,
+		getPixelByLoc = function(self, x, y)
+			for i=1,#self.pixs do
+				local pixel = self.pixs[i]
+				if pixel.x == x and pixel.y == y then
+					return pixel
+				end
+			end
+			return nil
+		end,
+		draw = function(self)
+			for i=1,#self.pixs do
+				local pixel = self.pixs[i]
+				pixel:draw()
+			end
+		end,
+		updatePixels = function(self)
+			for i=1,#self.pixs do
+				local pixel = self.pixs[i]
+				pixel:updatePixels()
+			end
+		end,
+		merge = function(self, pixelarray)
+			for i=1,#pixelarray.pixs do
+				self.pixs[#self.pixs + 1] = pixelarray.pixs[i]
+			end
+		end,
+		addPixels = function(self, apixs)
+			for i=1,#apixs do
+				self.pixs[#self.pixs + 1] = apixs[i]
+			end
+		end,
+	}
+	return parray
+end
+
+function createPixel(px, py, pbcolor, ptcolor, pcharacter)
+	local pixel = {
+		id = #pixels + 1,
+		x = px,
+		y = py,
+		background_color = pbcolor,
+		text_color = ptcolor,
+		character = pcharacter,
+		index,
+		
+		getID = function(self)
+			return self.id
+		end,
+		getX = function(self)
+			return self.x
+		end,
+		getY = function(self)
+			return self.y
+		end,
+		getBackgroundColor = function(self)
+			return self.background_color
+		end,
+		getTextColor = function(self)
+			return self.text_color
+		end,
+		getChar = function(self)
+			return self.charachter
+		end,
+		setX = function(self, nx)
+			self.x = nx
+		end,
+		setY = function(self, ny)
+			self.y = ny
+		end,
+		setBackgroundColor = function(self, ncolor)
+			self.background_color = ncolor
+		end,
+		setTextColor = function(self, ncolor)
+			self.text_color = ncolor
+		end,
+		setChar = function(self, ncharacter)
+			self.character = ncharacter
+		end,
+		updatePixel = function(self)
+			if self.index == nil then
+				self.index = getPixelIndex(setPixel(self.x, self.y, self.background_color, self.text_color, self.character, self.id, nil))
+			else
+				setPixel(self.x, self.y, self.background_color, self.text_color, self.character, self.id, self.index)
+			end
+		end,
+		draw = function(self)
+			
+			--oldx, oldy = term.getCursorPos()
+			--term.setCursorPos(oldx, oldy)
+			term.setCursorPos(self.x, self.y)
+			if self.text_color ~= nil then
+				term.setTextColor(self.text_color)
+			end
+			term.write(self.character)
+			if self.background_color ~= nil then
+				term.setBackgroundColor(self.background_color)
+			end
+			if self.text_color ~= nil then
+				term.setTextColor(self.text_color)
+			end
+			--term.setCursorPos(oldx, oldy)
+			self:updatePixel()
+		end,
+	}
+	return pixel
+end

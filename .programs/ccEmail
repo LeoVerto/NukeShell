@@ -1,0 +1,475 @@
+os.loadAPI("apis/StrUtils")
+print("CCEmail client Alpha 1.0 by Jasonfran")
+
+function clear()
+	term.clear()
+	term.setCursorPos(1,1)
+end
+
+function main()
+
+	login = false
+	Register = false
+	loggedin = false
+	clear()
+	print("What would you like to do, register, login or exit")
+	write("Command> ")
+	command = string.gsub(string.lower(read()), "%s+", "")
+	if command == "register" then
+		loggedin = false
+		login = false
+		Register = true
+		drawRegister()
+	elseif command == "login" then
+		Register = false
+		loggedin = false
+		login = true
+		drawLogin()
+	elseif command == "exit" then
+		return
+	else
+		clear()
+		print("Command not recognised")
+		sleep(2)
+		main()
+	end
+end
+
+
+function sendMail(username, message)
+	http.request("http://computercraftemail.tk/Send.php", "message=" .. message .. "&username=" .. string.lower(username) .."&" .."password=" .. password2 .. "&loginname=" .. loginname)
+
+	local requesting = true
+
+	while requesting do
+
+		local event, url, sourceText = os.pullEvent()
+
+		if event == "http_success" then
+
+			local respondedText = sourceText.readLine(1)
+			local respondedText2 = sourceText.readLine(2)
+			if respondedText == "Username not found." then
+				term.setTextColor(colors.red)
+				print("User not found. Maybe the user hasn't registered yet")
+				term.setTextColor(colors.white)
+			elseif respondedText == "Could not connect." then
+				term.setTextColor(colors.red)
+				print("Something went wrong with the Mysql database. This could just be a one off error but if it continues to happen contact Jasonfran on the computercraft forums.")
+				term.setTextColor(colors.white)
+			else
+				term.setTextColor(colors.lime)
+				print("Message sent!\n" .. respondedText .. "\n\n" .. respondedText2)
+				term.setTextColor(colors.white)
+			end
+			requesting = false
+
+		elseif event == "http_failure" then
+
+			print("Server didn't respond.")
+
+			requesting = false
+
+		end
+	end
+end
+
+function checkLogin(username, password)
+
+http.request("http://computercraftemail.tk/Checklogin.php", "username=" .. username .. "&password=" .. password )
+
+local requesting2 = true
+
+	while requesting2 do
+
+		local event, url, sourceText = os.pullEvent()
+
+		if event == "http_success" then
+
+			local respondedText = sourceText.readLine(1)
+			local respondedText2 = sourceText.readLine(2)
+			if respondedText == "Login failed" then
+				term.setTextColor(colors.red)
+				print("Username or password incorrect")
+				term.setTextColor(colors.white)
+				sleep(2)
+				loggedin = false
+				login = false
+				Register = false
+				loggedin = false
+				main()
+			elseif respondedText == "Login successful" then
+				term.setTextColor(colors.lime)
+				print("Login successful!")
+				term.setTextColor(colors.white)
+				sleep(2)
+				clear()
+				loginMain()
+			else
+				term.setTextColor(colors.red)
+				print("An error has occured...")
+				sleep(2)
+				term.setTextColor(colors.white)
+			end
+			requesting2 = false
+
+		elseif event == "http_failure" then
+
+			print("Server didn't respond.")
+
+			requesting2 = false
+
+		end
+	end
+end
+function sendMessageForm()
+	
+	login = false
+	Register = false
+	loggedin = true
+	clear()
+	print("You are now logged in. You can send messages to different users.")
+	write("Username: ")
+	term.setTextColor(colors.red)
+	username = string.lower(read())
+	term.setTextColor(colors.white)
+	write("Message: ")
+	term.setTextColor(colors.red)
+	message = read()
+	term.setTextColor(colors.white)
+	clear()
+	if username == "" and message == "" then
+		term.setTextColor(colors.red)
+		print("ERROR: No post data!")
+		term.setTextColor(colors.white)
+		sleep(3)
+		loginMain()
+	else
+		textutils.slowPrint("Sending...")
+		sendMail(username,message)
+		sleep(3)
+		loginMain()
+	end
+end
+
+
+function register(username, password)
+
+http.request("http://computercraftemail.tk/Register.php", "username=" .. username .. "&" .."password=" .. password)
+
+local requesting3 = true
+
+	while requesting3 do
+
+		local event, url, sourceText = os.pullEvent()
+
+		if event == "http_success" then
+
+			local respondedText = sourceText.readLine(1)
+			local respondedText2 = sourceText.readLine(2)
+			if respondedText == "Registration failed" then
+				term.setTextColor(colors.red)
+				print("Username exists. Or a rare error occured")
+				sleep(2)
+				term.setTextColor(colors.white)
+				loggedin = false
+				Register = false
+				login = false
+
+				main()
+			elseif repsondedText == "Contains space" then
+				term.setTextColor(colors.red)
+				print("Username cannot contain a space")
+				sleep(2)
+				term.setTextColor(colors.white)
+			
+			elseif respondedText == "Registration success" then
+				term.setTextColor(colors.lime)
+				print("Registration successful! You may now log in")
+				term.setTextColor(colors.white)
+				sleep(2)
+				clear()
+				Register = false
+				loggedin = false
+				drawLogin()
+			else
+				term.setTextColor(colors.red)
+				print("An error has occured... Or your username contains a space")
+				sleep(2)
+				term.setTextColor(colors.white)
+				main()
+			end
+			requesting3 = false
+
+		elseif event == "http_failure" then
+
+			print("Server didn't respond.")
+
+			requesting3 = false
+
+		end
+	end
+end
+
+
+function printCentered(sText)
+    local w, h = term.getSize()
+    local x, y = term.getCursorPos()
+    x = math.max(math.floor((w / 2) - (#sText / 2)), 0)
+    term.setCursorPos(x, y)
+    print(sText)
+end
+function printCenteredY(sText, Y)
+    local w, h = term.getSize()
+    local x, y = term.getCursorPos()
+    x = math.max(math.floor((w / 2) - (#sText / 2)), 0)
+    term.setCursorPos(x, Y)
+    print(sText)
+end
+function writeCenteredY(sText, Y)
+    local w, h = term.getSize()
+    local x, y = term.getCursorPos()
+    x = math.max(math.floor((w / 2) - (#sText / 2)), 0)
+    term.setCursorPos(x, Y)
+    write(sText)
+end
+
+function printBottomRight(text)
+  local w,h = term.getSize()
+  term.setCursorPos(w - #text, h)
+  write(text)
+end
+
+
+------------LOG IN FORM----------
+
+function drawLogin()
+	login = true
+	Register = false
+	loggedin = false
+	local w, h = term.getSize()
+	clear()
+	term.setCursorPos(1,1)
+	printCentered("Please log in to continue...")
+	term.setCursorPos(1,4)
+	write("Username: ")
+	username = read()
+	term.setCursorPos(1,6)
+	write("Password: ")
+	password = StrUtils.SHA1(read("*"))
+	clear()
+	textutils.slowPrint("Logging in...")
+	loginname = username
+	password2 = password
+	checkLogin(username,password)
+end
+function pressSpace()
+print("Press space to continue")
+    while true do
+        local sEvent, param = os.pullEvent("key")
+        if sEvent == "key" then
+            if param == 57 then
+                break
+            end
+        end
+    end
+end
+function getInbox(username, password)
+	http.request("http://computercraftemail.tk/Inbox.php", "username=" .. string.lower(loginname) .. "&password=" .. password2)
+
+	local requesting = true
+
+	while requesting do
+
+		local event, url, sourceText = os.pullEvent()
+
+		if event == "http_success" then
+			local respondedText = sourceText.readLine(1)
+			
+			if respondedText == "Login failed" then
+				term.setTextColor(colors.red)
+				print("Something went wrong with the login")
+				term.setTextColor(colors.white)
+				loginMain()
+			elseif respondedText == "No messages" then
+				term.setTextColor(colors.red)
+				print("Your inbox is empty!")
+				term.setTextColor(colors.white)
+				sleep(1)
+				pressSpace()
+				loginMain()
+				
+			else
+				term.setTextColor(colors.lime)
+				amount = respondedText
+				if repsondedText == "No messages" then
+					term.setTextColor(colors.red)
+					print("Your inbox is empty!")
+					term.setTextColor(colors.white)
+					sleep(1)
+					pressSpace()
+					loginMain()
+				else
+					amount2 = tonumber(respondedText)
+					--SORT THIS OUT
+						for i = 1, amount2 do
+							print(sourceText.readLine(i))
+						end
+					term.setTextColor(colors.white)
+					pressSpace()
+					manageInbox()
+				end
+			end
+			requesting = false
+
+		elseif event == "http_failure" then
+
+			print("Server didn't respond.")
+
+			requesting = false
+
+		end
+	end
+end
+
+function deleteQuery(username, password)
+	http.request("http://computercraftemail.tk/Delete.php", "username=" .. string.lower(loginname) .. "&password=" .. password2)
+
+	local requesting = true
+
+	while requesting do
+
+		local event, url, sourceText = os.pullEvent()
+
+		if event == "http_success" then
+			local respondedText = sourceText.readLine(1)
+			
+			if respondedText == "Success" then
+				term.setTextColor(colors.red)
+				print("Inbox cleared")
+				term.setTextColor(colors.white)
+				sleep(2)
+				loginMain()
+			elseif respondedText == "No messages to clear" then
+			
+			term.setTextColor(colors.red)
+				print("There was no messages to clear. How did you even get to this menu?")
+				term.setTextColor(colors.white)
+				sleep(2)
+				loginMain()
+				
+			else
+				term.setTextColor(colors.red)
+				print("Something went wrong with the query")
+				term.setTextColor(colors.white)
+				sleep(2)
+				manageInbox()
+			end
+			requesting = false
+
+		elseif event == "http_failure" then
+
+			print("Server didn't respond.")
+
+			requesting = false
+
+		end
+	end
+end
+
+function drawRegister()
+	login = false
+	Register = true
+	loggedin = false
+	local w, h = term.getSize()
+	clear()
+	term.setCursorPos(1,1)
+	printCentered("Registration form")
+	print("Usernames containing a space will have them removed")
+	term.setCursorPos(1,5)
+	write("Username: ")
+	username = string.gsub(read(), "%s+", "")
+	term.setCursorPos(1,7)
+	write("Password: ")
+	password = StrUtils.SHA1(read("*"))
+	term.setCursorPos(1,9)
+	write("Retype password: ")
+	retype = StrUtils.SHA1(read("*"))
+	clear()
+	if retype == password then
+	textutils.slowPrint("Registering...")
+	register(username,password)
+	else
+		clear()
+		print("The 2 passwords do not match!")
+		sleep(2)
+		loggedin = false
+		login = false
+		register = false
+		main()
+	end
+	
+end
+
+function loginMain()
+
+	login = false
+	Register = false
+	loggedin = false
+	clear()
+	print("What would you like to do, send, inbox or logout")
+	write("Command> ")
+	command = string.gsub(string.lower(read()), "%s+", "")
+	if command == "send" then
+		sendMessageForm()
+	elseif command == "inbox" then
+		getInbox(loginname, password2)
+	elseif command == "logout" then
+	
+		main()
+	else
+		clear()
+		print("Command not recognised")
+		sleep(2)
+		loginMain()
+	end
+end
+
+function manageInbox()
+	print("What would you like to do, clear or exit")
+	write("Command> ")
+	command = string.gsub(string.lower(read()), "%s+", "")
+	if command == "clear" then
+		deleteQuery(loginname, password2)
+	elseif command == "exit" then
+		loginMain()
+	else
+		clear()
+		print("Command not recognised")
+		sleep(2)
+		manageInbox()
+	end
+end
+
+------------------------------Run code-----------------------------------
+
+loggedin = false
+Register = false
+login = false
+
+if loggedin == true and login == false and Register == false then
+	sendMessageForm()
+end
+
+main()
+
+--Log in form
+if loggedin == false and Register == false and login == true then
+	drawLogin()
+end
+
+if loggedin == false and login == false and Register == true then
+	drawRegister()
+end
+
+--Create message form

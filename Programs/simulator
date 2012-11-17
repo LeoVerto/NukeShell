@@ -1,0 +1,354 @@
+tCreatures={
+
+hostile={
+
+orc={
+status='hostile';
+symbol='O';
+sight=5;
+str=5;
+dex=3;
+con=6;
+int=2;
+spd=1;};
+
+elf={
+status='hostile';
+symbol='E';
+sight=5;
+str=3;
+dex=6;
+con=4;
+int=5;
+spd=1;};
+
+};
+
+neutral={
+
+civ={
+status='neutral';
+symbol='C';
+sight=5;
+str=4;
+dex=3;
+con=3;
+int=4;
+spd=1;};
+
+};
+
+friendly={
+
+guard={
+status='friendly';
+symbol='G';
+sight=5;
+str=4;
+dex=4;
+con=5;
+int=3;
+spd=1;};
+
+};
+
+
+}
+local tCreature_mt={}
+for sType,tList in pairs(tCreatures) do
+	for sName,tMob in pairs(tList) do
+		tList[sName]=setmetatable(tMob,tCreature_mt)
+	end
+end
+tCreatures.random={unpack(tCreatures.hostile),unpack(tCreatures.neutral);unpack(tCreatures.friendly)};
+
+local tMap_mt={}
+local tMap=setmetatable({},tMap_mt)
+local tSpawns={}
+local tPlayer=setmetatable({symbol='@';type='player'},tCreature_mt)
+local tMobs_mt={}
+local tMobs=setmetatable({constant={tPlayer};temp={}},tMobs_mt)
+local tRenderHandlers=setmetatable({s=' ';h=' ';n=' ';f=' ';r=' '},{__index=function(table,index) return index end})
+local tHandlers=setmetatable({[' ']='walk';d='walk';D='open';['#']='wall';w='wall'},{__index=function(table,index) return rawget(table,rawget(tRenderHandlers,index)) end})
+local mapx
+local mapy
+
+local function hit(tMob,tTarget)
+	
+end
+
+function tMobs_mt.__call(table,x,y)
+	for sType,tList in pairs(table) do
+		for num,tMob in pairs(tList) do
+			if tMob.cds.x==x and tMob.cds.y==y then
+				return true,tMob
+			end
+		end
+	end
+	return false
+end
+
+function tCreature_mt.__call(table,x,y,isNeut)
+	if not y then return false end
+	if tHandlers[tMap[y][x]]=='walk' then
+		local tResult={tMobs(x,y)}
+		if not tResult[1] then
+			table.cds.x=x
+			table.cds.y=y
+			return true
+		elseif not isNeut then
+			hit(tMob,tResult[2])
+			return true
+		else
+			return false
+		end
+	else
+		return false
+	end
+end
+
+local function copyT(var)
+	if type(var)=='table' then
+		local tTemp={}
+		local MT=getmetatable(var)
+		for k,v in pairs(var) do
+			tTemp[k]=v
+		end
+		return setmetatable(tTemp,MT)
+	end
+end
+
+local function selectRandom(tList)
+	local intRef=0
+	local tReference={}
+	for k,v in pairs(tList) do
+		intRef=intRef+1
+		tReference[intRef]=v
+	end
+	return tReference[math.random(1,intRef)]
+end
+
+local function calcDist(pt1,pt2)
+	return math.sqrt(math.pow(pt2.cds.x-pt1.cds.x,2)+math.pow(pt2.cds.y-pt1.cds.y,2))
+end
+
+function drawline(pt1,pt2,main)
+	local height=pt2.y-pt1.y
+	local width=pt2.x-pt1.x
+	local grad=height/width
+	local disp=pt1.y-pt1.x*grad
+	if main.y-(main.x*grad+disp)<=1 and main.y-(main.x*grad+disp)>=-1 then
+		return true
+	end
+end
+
+local function checkIfVisible(tMob,target)
+	local visible=true
+	for x=tMob.cds.x,target.cds.x,((tMob.cds.x<target.cds.x and 1) or -1) do
+		for y=tMob.cds.y,target.cds.y,((tMob.cds.y<target.cds.y and 1) or -1) do
+			if drawline(tMob.cds,tPlayer.cds,{x=x,y=y}) and tHandlers[tMap[y][x]]=='wall' then
+				visible=false
+			end
+		end
+	end
+	return visible
+end
+
+local function mosy(tMob)
+	if math.random(1,2)==1 then
+		local tMoves={{tMob.cds.x-1;tMob.cds.y};{tMob.cds.x+1;tMob.cds.y};{tMob.cds.x;tMob.cds.y-1};{tMob.cds.x;tMob.cds.y+1};}
+		tMob(unpack(tMoves[math.random(1,4)]))
+	end
+end
+
+local function moveTo(tMob,tTarget,isNeut)
+	local function checkH()
+		if tMob.cds.x>tTarget.cds.x then
+			return tMob(tMob.cds.x-1,tMob.cds.y,isNeut)
+		else
+			return tMob(tMob.cds.x+1,tMob.cds.y,isNeut)
+		end
+	end
+	
+	local function checkV()
+		if tMob.cds.y>tTarget.cds.y then
+			return tMob(tMob.cds.x,tMob.cds.y-1,isNeut)
+		else
+			return tMob(tMob.cds.x,tMob.cds.y+1,isNeut)
+		end
+	end
+	
+	if ((tMob.cds.x>tTarget.cds.x and tMob.cds.x-tTarget.cds.x) or tTarget.cds.x-tMob.cds.x)>=((tMob.cds.y>tTarget.cds.y and tMob.cds.y-tTarget.cds.y) or tTarget.cds.y-tMob.cds.y) then
+		if not checkH() then checkV() end
+	else
+		if not checkV() then checkH() end
+	end
+end
+
+local function canSeeType(tMob,sType)
+	local tSeen={}
+	for x=tMob.cds.x-tMob.sight,tMob.cds.x+tMob.sight do
+		for y=tMob.cds.y-tMob.sight,tMob.cds.y+tMob.sight do
+			local tResult={tMobs(x,y)}
+			if tResult[1]==true and checkIfVisible(tMob,tResult[2]) and tResult[2].status==sType and tResult[2]~=tMob then
+				tSeen[#tSeen+1]=tResult[2]
+			end
+		end
+	end
+	if tSeen[1] then
+		local closest={'none',math.sqrt(math.pow(tMob.sight,2)*2)}
+		for num,tTarget in pairs(tSeen) do
+			if calcDist(tMob,tTarget)<closest[2] then
+				closest[1]=num
+				closest[2]=calcDist(tMob,tTarget)
+			end
+		end
+		if tSeen[closest[1]] then
+			return true, tSeen[closest[1]]
+		end
+	else
+		return false
+	end
+end
+
+local function doAI()
+	for num,tMob in pairs(tMobs.temp) do
+		if tMob.status=='hostile' then
+			local tResult={canSeeType(tMob,'friendly')}
+			if checkIfVisible(tMob,tPlayer) and calcDist(tMob,tPlayer)<=tMob.sight and not tPlayer.invisible and math.random(1,4)~=1 then
+				moveTo(tMob,tPlayer,calcDist(tMob,tPlayer)>1 and true)
+			elseif tResult[1]==true then
+				moveTo(tMob,tResult[2])
+			else
+				mosy(tMob)
+			end
+		elseif tMob.status=='neutral' then
+			mosy(tMob)
+		elseif tMob.status=='friendly' then
+			local tResult={canSeeType(tMob,'hostile')}
+			if tResult[1]==true then
+				moveTo(tMob,tResult[2],(calcDist(tMob,tResult[2])>1 and true))
+			elseif calcDist(tMob,tPlayer)>2 then
+				moveTo(tMob,tPlayer,true)
+			end
+		end
+	end
+end
+
+local function load(file)
+	if fs.exists(file) then
+		tSpawns={player={};hostile={};friendly={};neutral={};random={}}
+		for k,v in pairs(tMap) do
+			tMap[k]=nil
+		end
+		local oFile=io.open(file,'r')
+		local tRows={}
+		while true do
+			local temp=oFile:read()
+			if temp then
+				tRows[#tRows+1]=temp
+			else
+				break
+			end
+		end
+		for y,sRow in pairs(tRows) do
+			tMap[y]={}
+			for x=1,#sRow do
+				tMap[y][x]=string.sub(sRow,x,x)
+				if tMap[y][x]=='s' then tSpawns.player[#tSpawns.player+1]={x=x;y=y} end
+				if tMap[y][x]=='h' then tSpawns.hostile[#tSpawns.hostile+1]={x=x;y=y} end
+				if tMap[y][x]=='f' then tSpawns.friendly[#tSpawns.friendly+1]={x=x;y=y} end
+				if tMap[y][x]=='n' then tSpawns.neutral[#tSpawns.neutral+1]={x=x;y=y} end
+				if tMap[y][x]=='r' then tSpawns.random[#tSpawns.random+1]={x=x;y=y} end
+			end
+		end
+		mapy=#tMap
+		mapx=0
+		for y,tColumn in pairs(tMap) do
+			for x,sValue in pairs(tColumn) do
+				if x>mapx then
+					mapx=x
+				end
+			end
+		end
+	else
+		return false
+	end
+end
+
+local function render(offsetX,offsetY)
+	offsetX=offsetX or 1
+	offsetY=offsetY or 1
+	while true do
+		for y,tRow in pairs(tMap) do
+			for x,sValue in pairs(tRow) do
+				term.setCursorPos(x+offsetX-1,y+offsetY-1)
+				write(tRenderHandlers[sValue])
+			end
+		end
+		for sType,tList in pairs(tMobs) do
+			for num,tMob in pairs(tList) do
+				if tMob.cds and tMob.symbol then
+					term.setCursorPos(tMob.cds.x+offsetX-1,tMob.cds.y+offsetY-1)
+					write(tMob.symbol)
+				end
+			end
+		end
+		os.pullEvent()
+	end
+end
+
+local function spawn()
+	if not tSpawns.player[1] then
+		return false
+	else
+		tPlayer.cds=tSpawns.player[math.random(1,#tSpawns.player)]
+		tPlayer.stats={}
+		tPlayer.stats.HP=100
+	end
+	for type,tSpawnList in pairs(tSpawns) do
+		if type~='player' then
+			for num,cds in pairs(tSpawnList) do
+				tMobs.temp[#tMobs.temp+1]=copyT(selectRandom(tCreatures[type]))
+				tMobs.temp[#tMobs.temp].cds=cds
+			end
+		end
+	end
+end
+
+local function interface()
+	while true do
+		local acted=true
+		local _,key=os.pullEvent('char')
+		if key=='w' then
+			tPlayer(tPlayer.cds.x,tPlayer.cds.y-1)
+		elseif key=='a' then
+			tPlayer(tPlayer.cds.x-1,tPlayer.cds.y)
+		elseif key=='s' then
+			tPlayer(tPlayer.cds.x,tPlayer.cds.y+1)
+		elseif key=='d' then
+			tPlayer(tPlayer.cds.x+1,tPlayer.cds.y)
+		else
+			acted=nil
+		end
+		if acted then
+			doAI()
+		end
+	end
+end
+
+term.clear()
+load('map')
+spawn()
+local tThreads={interface;render}
+for num,fThread in pairs(tThreads) do
+	tThreads[num]=coroutine.create(fThread)
+end
+local tEvents={}
+while true do
+	for num,cRoutine in pairs(tThreads) do
+		coroutine.resume(cRoutine,unpack(tEvents))
+	end
+	tEvents={os.pullEvent()}
+end
+sleep(10)

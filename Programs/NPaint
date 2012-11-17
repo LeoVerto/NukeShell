@@ -1,0 +1,5 @@
+local filenumber = 1
+while fs.exists("Files/NPaint/newfile"..filenumber) do
+  filenumber = filenumber + 1
+end
+shell.run(".programs/NPaintPro", "Files/NPaint/newfile"..filenumber)

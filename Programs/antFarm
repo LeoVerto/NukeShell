@@ -1,0 +1,85 @@
+--Global variables
+local ants = {}
+local width,height = term.getSize()
+local map = {}
+
+--initialisation
+for x = 1, width do
+map[x] = {}
+for y = 1, height do
+  map[x][y] = 1
+end
+end
+
+--Ant Functions
+function addAnt(antX,antY)
+local ant = {
+  x = antX,
+  y = antY,
+  distance = 0,
+  directionX = 0,
+  directionY = 0,
+  --update function for ant to choose direction and move
+  update = function(self)
+   if self.distance == 0 then
+        self.directionX = 0
+        self.directionY = 0
+        local direction = math.random(1,2)
+        self.distance = math.random(1,5)
+        if direction == 1 then
+         repeat self.directionX = math.random(-1,1) until self.x + self.directionX*self.distance > 1 and self.x + self.directionX*self.distance < width
+        elseif direction == 2 then
+         repeat self.directionY = math.random(-1,1) until self.y + self.directionY*self.distance > 1 and self.y + self.directionY*self.distance < height
+        end
+   end
+   self.x = self.x + self.directionX
+   self.y = self.y + self.directionY
+   self.distance = self.distance - 1
+  end,
+  --draw function for ant to be shown on the screen
+  draw = function(self)
+   term.setCursorPos(self.x,self.y)
+   term.setBackgroundColor(colors.yellow)  
+   write(" ")
+  end
+}
+table.insert(ants,ant)
+end
+
+--Game Functions
+function draw()
+for x = 1, width do
+  for y = 1, height do
+   term.setCursorPos(x,y)
+   local tile = map[x][y]  
+   if tile == 0 then
+        term.setBackgroundColor(colors.black)
+   elseif tile == 1 then
+        term.setBackgroundColor(colors.brown)
+   end
+   write(" ")
+  end
+end
+for i=1,#ants do
+  local ant = ants[i]
+  ant:draw()
+end
+end
+function update()
+for i=1,#ants do
+  local ant = ants[i]
+  map[ant.x][ant.y] = 0
+  ant:update()
+end
+end
+
+--Game loop
+addAnt(2,2)
+addAnt(4,4)
+while true do
+term.setBackgroundColor(colors.black)
+term.clear()
+update()
+draw()
+sleep(0.2)
+end
