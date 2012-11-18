@@ -39,8 +39,9 @@ local sDir = sStartDir
 local maxCol, maxRow = 1, 1
 local tOrigins = {}
 local tData = {}
-local tDebug ={"Initialized"}
-sClipboard = ""
+local tDebug = {"Initialized"}
+local tPeripherals = {top, bottom, left, right, front, back}
+local sClipboard = ""
 local sVersion = "1.0"
 
 -- Returns the maximum columns and rows of icons
@@ -174,6 +175,16 @@ local function iconData(x, y)
 	return nil
 end
 
+-- Seach for peripherals on all sides and add them to peripheral table
+local function getPeripherals()
+  for _, side in ipairs(rs.getSides()) do
+    local sPerType = peripheral.getType(side)
+    if sPerType ~= nil then
+      tPeripherals[side] = sPerType
+    end
+  end
+end
+
 -- Load all files from api dir as APIs
 local function loadApis(bReturn)
   local tApis = fs.list(sApiDir)
@@ -183,23 +194,43 @@ local function loadApis(bReturn)
   if bReturn then return tApis end
 end
 
--- Startup crappy, will be remade lateron
-term.clear()
-term.setCursorPos(1,1)
-print("Launching NukeShell" ..sVersion.."...")
-sleep(.2)
-print("Loading APIs...")
-sleep(.2)
-local tApis = loadApis(true)
-for i=1, #tApis do
-  print("Loaded API "..tApis[i])
+-- Crappy startup, will be remade lateron
+local function startup()
+  term.clear()
+  term.setCursorPos(1,1)
+  print("Launching NukeShell" ..sVersion.."...")
+  sleep(.2)
+  
+  print("Searching for peripherals...")
+  getPeripherals()
+  local nPeripherals = 0
+  for key, value in ipairs(tPeripherals) do
+    nPeripherals = nPeripherals + 1
+    print(key..": "..value)
+  end
+  if nPeripherals == 0 then
+    print("No peripherals found.")
+  else
+    print(nPeripherals.." peripherals found.")
+  end
+  sleep(.2)
+  
+  print("Loading APIs...")
+  sleep(.2)
+  
+  local tApis = loadApis(true)
+  for i=1, #tApis do
+    print("Loaded API "..tApis[i])
+  end
+  sleep(.2)
+  
+  print("Ready to go!")
+  sleep(.6)
 end
-sleep(.2)
-print("Ready to go!")
-sleep(.6)
 
 -- Main program loop
 local bRun = true
+startup()
 recalculate()
 redraw()
 local bCursorToggle = false
