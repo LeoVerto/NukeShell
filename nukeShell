@@ -24,6 +24,7 @@ local sStartDir = nukeAPI.getGlobalVar("sStartDir")
 local sEditPath = nukeAPI.getGlobalVar("sEditPath")
 local sProgramDir = nukeAPI.getGlobalVar("sProgramDir")
 local sApiDir = nukeAPI.getGlobalVar("sApiDir")
+local tPeripherals = nukeAPI.getGlobalVar("tPeripherals")
 
 -- Initialize some variables for later
 local tDirIcon = {"", " /\\____", "|      |", "|      |", "|______|"}
@@ -40,7 +41,6 @@ local maxCol, maxRow = 1, 1
 local tOrigins = {}
 local tData = {}
 local tDebug = {"Initialized"}
-local tPeripherals = {top, bottom, left, right, front, back}
 local sClipboard = ""
 local sVersion = "1.0"
 

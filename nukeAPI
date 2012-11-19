@@ -1,16 +1,46 @@
 -- Initialize some variables for later
 local xMax, yMax = term.getSize()
 local row = 4, 3, 1
+local sSystemDir = ".system/"
+
+-- Temp definition of global vars
+  tGlobalVars = {
+    sStartDir = "",
+    sEditPath = ".programs/cedit",
+    sProgramDir = "Programs",
+    sApiDir = ".apis",
+    sFileDir = "Files",
+    tPeripherals = {top, bottom, left, right, front, back}
+  }
+
+-- Load global vars
+function loadGlobalVars()
+  if not fs.exists(sSystemDir..".registry") then
+    return false
+  end
+  registry = fs.open(sSystemDir..".registry", "r")
+  local tLoadedGlobalVars = registry.readLine()
+  if tLoadedGlobalVars == nil then
+    return false
+  end
+  registry.close()
+  return true
+end
+
+
+-- Save all global vars to file
+function saveGlobalVars()
+  if not fs.exists(sSystemDir) then
+    fs.makeDir(sSystemDir)
+  end
+  registry = fs.open(sSystemDir..".registry", "w")
+  registry.writeLine(textutils.serialize(tGlobalVars))
+  registry.close()
+  return true
+end
 
 -- Get global vars using this function
 function getGlobalVar(name)
-  tGlobalVars = {
-    sStartDir = "",
-    sEditPath = "/.programs/cedit",
-    sProgramDir = "Programs",
-    sApiDir = ".apis",
-    sFileDir = "Files"
-  }
   return tGlobalVars[name]
 end
 
