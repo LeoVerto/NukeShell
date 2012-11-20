@@ -1,47 +1,37 @@
 -- Initialize some variables for later
 local xMax, yMax = term.getSize()
 local row = 4, 3, 1
-local sSystemDir = ".system/"
+local sSystemDir = ".system"
+local tRegistry = {}
 
--- Temp definition of global vars
-  tGlobalVars = {
-    sStartDir = "",
-    sEditPath = ".programs/cedit",
-    sProgramDir = "Programs",
-    sApiDir = ".apis",
-    sFileDir = "Files",
-    tPeripherals = {top, bottom, left, right, front, back}
-  }
-
--- Load global vars
-function loadGlobalVars()
-  if not fs.exists(sSystemDir..".registry") then
-    return false
-  end
-  registry = fs.open(sSystemDir..".registry", "r")
-  local tLoadedGlobalVars = registry.readLine()
-  if tLoadedGlobalVars == nil then
-    return false
-  end
-  registry.close()
-  return true
-end
-
-
--- Save all global vars to file
-function saveGlobalVars()
+-- Save registry to file
+function saveRegistry()
   if not fs.exists(sSystemDir) then
     fs.makeDir(sSystemDir)
   end
-  registry = fs.open(sSystemDir..".registry", "w")
-  registry.writeLine(textutils.serialize(tGlobalVars))
+  registry = fs.open(fs.combine(sSystemDir, "registry", "w"))
+  registry.writeLine(textutils.serialize(tRegistry))
   registry.close()
   return true
 end
 
--- Get global vars using this function
-function getGlobalVar(name)
-  return tGlobalVars[name]
+-- Get registry entries using this function
+function getRegistryEntry(name)
+  if not fs.exists(fs.combine(sSystemDir, "registry")) then
+    return false
+  end
+  registry = fs.open(fs.combine(sSystemDir, "registry"), "r")
+  local tLoadedRegistry = registry.readLine()
+  registry.close()
+  tRegistry = textutils.unserialize(tLoadedRegistry)
+  if tRegistry["bCheckMe"] == nil then
+    return false
+  end
+  if not name == nil then
+    return tRegistry[name]
+  else
+    return true
+  end
 end
 
 -- Returns a table of possible icon origin positions

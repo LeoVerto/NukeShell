@@ -19,13 +19,6 @@ end
 os.loadAPI("nukeAPI")
 nukeAPI = _G["nukeAPI"]
 
--- Configuration variables
-local sStartDir = nukeAPI.getGlobalVar("sStartDir")
-local sEditPath = nukeAPI.getGlobalVar("sEditPath")
-local sProgramDir = nukeAPI.getGlobalVar("sProgramDir")
-local sApiDir = nukeAPI.getGlobalVar("sApiDir")
-local tPeripherals = nukeAPI.getGlobalVar("tPeripherals")
-
 -- Initialize some variables for later
 local tDirIcon = {"", " /\\____", "|      |", "|      |", "|______|"}
 local tFileIcon = {" ______", "|      |", "|      |", "|      |", "|______|"}
@@ -36,13 +29,20 @@ local tFileExtentions = {["text"] = {".txt", ".lua"}, ["image"] = {".img", ".nfp
 local tFileBlacklist = {"nukeShell", "nukeAPI", "fileSys", "startup", "rom"}
 local xMax, yMax = term.getSize()
 local row = 4, 3, 1
-local sDir = sStartDir
 local maxCol, maxRow = 1, 1
+local tDebug = {"Initialized"}
+local sVersion = "1.0"
+
+local sDir = ""
+local sClipboard = ""
+local sStartDir = ""
+local sEditPath = ""
+local sProgramDir = ""
+local sApiDir = ""
 local tOrigins = {}
 local tData = {}
-local tDebug = {"Initialized"}
-local sClipboard = ""
-local sVersion = "1.0"
+local tPeripherals = {}
+local tApis = {}
 
 -- Returns the maximum columns and rows of icons
 local function iconLimits()
@@ -186,19 +186,44 @@ local function getPeripherals()
 end
 
 -- Load all files from api dir as APIs
-local function loadApis(bReturn)
+local function loadApis()
   local tApis = fs.list(sApiDir)
   for i=1, #tApis do
     os.loadAPI(sApiDir.."/"..tApis[i])
   end
-  if bReturn then return tApis end
+  return true
 end
 
 -- Crappy startup, will be remade lateron
 local function startup()
   term.clear()
   term.setCursorPos(1,1)
-  print("Launching NukeShell" ..sVersion.."...")
+  print("Launching NukeShell " ..sVersion.."...")
+  sleep(.2)
+  
+  print("Loading registry...")
+  if not nukeAPI.getRegistryEntry() then
+    print("Cannot load registry!")
+    return false
+  end
+  sStartDir = nukeAPI.getRegistryEntry("sStartDir")
+  sDir = sStartDir
+  sEditPath = nukeAPI.getRegistryEntry("sEditPath")
+  sProgramDir = nukeAPI.getRegistryEntry("sProgramDir")
+  sApiDir = nukeAPI.getRegistryEntry("sApiDir")
+  tPeripherals = nukeAPI.getRegistryEntry("tPeripherals")
+  sleep(.2)
+  
+  print("Loading APIs...")
+  sleep(.2)
+  print("\""..sApiDir.."\"")
+  if not loadApis() then
+    print("Cannot load APIs!")
+    return false
+  end
+  for i=1, #tApis do
+    print("Loaded API "..tApis[i])
+  end
   sleep(.2)
   
   print("Searching for peripherals...")
@@ -215,22 +240,15 @@ local function startup()
   end
   sleep(.2)
   
-  print("Loading APIs...")
-  sleep(.2)
-  
-  local tApis = loadApis(true)
-  for i=1, #tApis do
-    print("Loaded API "..tApis[i])
-  end
-  sleep(.2)
-  
   print("Ready to go!")
   sleep(.6)
 end
 
 -- Main program loop
 local bRun = true
-startup()
+if not startup() then
+  error("Startup aborted due to fatal error!")
+end
 recalculate()
 redraw()
 local bCursorToggle = false
