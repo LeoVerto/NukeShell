@@ -216,7 +216,6 @@ local function startup()
   
   print("Loading APIs...")
   sleep(.2)
-  print("\""..sApiDir.."\"")
   if not loadApis() then
     print("Cannot load APIs!")
     return false
@@ -242,6 +241,7 @@ local function startup()
   
   print("Ready to go!")
   sleep(.6)
+  return true
 end
 
 -- Main program loop

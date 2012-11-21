@@ -16,7 +16,7 @@ function saveRegistry()
 end
 
 -- Get registry entries using this function
-function getRegistryEntry(name)
+function getRegistryEntry(key)
   if not fs.exists(fs.combine(sSystemDir, "registry")) then
     return false
   end
@@ -27,10 +27,10 @@ function getRegistryEntry(name)
   if tRegistry["bCheckMe"] == nil then
     return false
   end
-  if not name == nil then
-    return tRegistry[name]
-  else
+  if key == nil then
     return true
+  else
+    return tRegistry[key]
   end
 end
 
