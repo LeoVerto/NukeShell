@@ -34,6 +34,18 @@ function getRegistryEntry(key)
   end
 end
 
+-- Seach for peripherals on all sides and add them to a table
+function getPeripherals()
+  local tPeripherals = {}
+  for _, side in ipairs(rs.getSides()) do
+    local sPerType = peripheral.getType(side)
+    if sPerType ~= nil then
+      tPeripherals[side] = sPerType
+    end
+  end
+  return tPeripherals
+end
+
 -- Returns a table of possible icon origin positions
 function originTable(maxCol, maxRow)
 	local tOrigins = {}

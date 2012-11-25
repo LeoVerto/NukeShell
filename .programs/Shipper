@@ -1,9 +1,14 @@
+--[[
+Name: Shipper
+Author: billysback
+Description: You have bought your space cruiser and set out on the beginning of your journey, but lately pirates have been prowling around... 
+Even being in the space ports around the area is tough, and as you grow so do the pirates.
+You must destroy and loot pirate ships to get money and crew-members in order to upgrade your ship and better defend yourself.
+--]]
+
 local timer
-
 local tick = 0
-
 local interval = 0.2
-
 local background
 local function genBackground()
 

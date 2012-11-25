@@ -1,47 +1,80 @@
+--[[
+Name: Ant Farm
+Author: ben657
+Description: Just a simple little ant farm to test out some
+AI ideas, and basic objects.
+--]]
+
 --Global variables
+local tArgs = {...}
 local ants = {}
 local width,height = term.getSize()
 local map = {}
+local speed = tonumber(tArgs[1]) or 0.1
+local numDug = 0
 
 --initialisation
 for x = 1, width do
 map[x] = {}
 for y = 1, height do
-  map[x][y] = 1
+map[x][y] = 1
 end
 end
 
 --Ant Functions
 function addAnt(antX,antY)
 local ant = {
-  x = antX,
-  y = antY,
-  distance = 0,
-  directionX = 0,
-  directionY = 0,
-  --update function for ant to choose direction and move
-  update = function(self)
-   if self.distance == 0 then
-        self.directionX = 0
-        self.directionY = 0
-        local direction = math.random(1,2)
-        self.distance = math.random(1,5)
-        if direction == 1 then
-         repeat self.directionX = math.random(-1,1) until self.x + self.directionX*self.distance > 1 and self.x + self.directionX*self.distance < width
-        elseif direction == 2 then
-         repeat self.directionY = math.random(-1,1) until self.y + self.directionY*self.distance > 1 and self.y + self.directionY*self.distance < height
-        end
-   end
-   self.x = self.x + self.directionX
-   self.y = self.y + self.directionY
-   self.distance = self.distance - 1
-  end,
-  --draw function for ant to be shown on the screen
-  draw = function(self)
-   term.setCursorPos(self.x,self.y)
-   term.setBackgroundColor(colors.yellow)  
-   write(" ")
-  end
+x = antX,
+y = antY,
+distance = 0,
+directionX = 0,
+directionY = 0,
+--find a direction to go in
+newDirection = function(self)
+self.distance = math.random(1,5)
+local upLeft = math.random(1,2)
+local chance = 50
+if upLeft == 1 then
+if map[self.x][self.y+1] == 0 then chance = chance - 25 end
+if map[self.x][self.y-1] == 0 then chance = chance + 25 end
+local moveUp = (math.random(0,100) < chance)
+if moveUp then
+self.directionY = -1
+else
+self.directionY = 1
+end
+elseif upLeft == 2 then
+if map[self.x+1][self.y] == 0 then chance = chance - 25 end
+if map[self.x-1][self.y] == 0 then chance = chance + 25 end
+local moveLeft = (math.random(0,100) < chance)
+if moveLeft then
+self.directionX = -1
+else
+self.directionX = 1
+end
+end
+end,
+--update function for ant to choose direction and move
+update = function(self)
+if self.distance <= 0 then
+self.directionX = 0
+self.directionY = 0
+self:newDirection()
+end
+self.x = self.x + self.directionX
+self.y = self.y + self.directionY
+if self.x <= 2 then self.x = 2; self.distance = 0
+elseif self.x >= width - 2 then self.x = width-2; self.distance = 0 end
+if self.y <= 2 then self.y = 2; self.distance = 0
+elseif self.y >= height - 2 then self.y = height - 2; self.distance = 0 end
+self.distance = self.distance - 1
+end,
+--draw function for ant to be shown on the screen
+draw = function(self)
+term.setCursorPos(self.x,self.y)
+term.setBackgroundColor(colors.yellow)
+write(" ")
+end
 }
 table.insert(ants,ant)
 end
@@ -49,27 +82,35 @@ end
 --Game Functions
 function draw()
 for x = 1, width do
-  for y = 1, height do
-   term.setCursorPos(x,y)
-   local tile = map[x][y]  
-   if tile == 0 then
-        term.setBackgroundColor(colors.black)
-   elseif tile == 1 then
-        term.setBackgroundColor(colors.brown)
-   end
-   write(" ")
-  end
+for y = 1, height do
+term.setCursorPos(x,y)
+local tile = map[x][y]
+if tile == 0 then
+term.setBackgroundColor(colors.black)
+elseif tile == 1 then
+term.setBackgroundColor(colors.brown)
 end
+write(" ")
+end
+end
+term.setCursorPos(1,1)
+term.setTextColor(colors.red)
+write("Virtual ant farm - by ben657")
 for i=1,#ants do
-  local ant = ants[i]
-  ant:draw()
+local ant = ants[i]
+ant:draw()
 end
 end
+
 function update()
 for i=1,#ants do
-  local ant = ants[i]
-  map[ant.x][ant.y] = 0
-  ant:update()
+local ant = ants[i]
+if map[ant.x][ant.y] ~= 0 then
+map[ant.x][ant.y] = 0
+numDug = numDug + 1
+end
+if numDug >= (width-3)*(height-3) then shell.run(shell.getRunningProgram()); exit() end
+ant:update()
 end
 end
 
@@ -81,5 +122,5 @@ term.setBackgroundColor(colors.black)
 term.clear()
 update()
 draw()
-sleep(0.2)
+sleep(speed)
 end

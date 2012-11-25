@@ -175,19 +175,9 @@ local function iconData(x, y)
 	return nil
 end
 
--- Seach for peripherals on all sides and add them to peripheral table
-local function getPeripherals()
-  for _, side in ipairs(rs.getSides()) do
-    local sPerType = peripheral.getType(side)
-    if sPerType ~= nil then
-      tPeripherals[side] = sPerType
-    end
-  end
-end
-
 -- Load all files from api dir as APIs
 local function loadApis()
-  local tApis = fs.list(sApiDir)
+  tApis = fs.list(sApiDir)
   for i=1, #tApis do
     os.loadAPI(sApiDir.."/"..tApis[i])
   end
@@ -226,7 +216,7 @@ local function startup()
   sleep(.2)
   
   print("Searching for peripherals...")
-  getPeripherals()
+  tPeripherals = nukeAPI.getPeripherals()
   local nPeripherals = 0
   for key, value in ipairs(tPeripherals) do
     nPeripherals = nPeripherals + 1
